@@ -19,7 +19,11 @@ import 'ui/screens/forgot_password_screen.dart';
 
 void main() async {
   WidgetsFlutterBinding.ensureInitialized();
-  await Firebase.initializeApp();
+  try {
+    await Firebase.initializeApp();
+  } catch (e) {
+    debugPrint('Firebase initialization failed: $e');
+  }
   await SupabaseService().initialize();
   debugPrint('Services initialized, starting app...');
   runApp(

@@ -6,7 +6,7 @@ import 'supabase_service.dart';
 import '../models/notification_model.dart';
 
 class NotificationService {
-  final FirebaseMessaging _firebaseMessaging = FirebaseMessaging.instance;
+  FirebaseMessaging? _firebaseMessaging;
   final FlutterLocalNotificationsPlugin _localNotifications =
       FlutterLocalNotificationsPlugin();
   final SupabaseClient _supabase = SupabaseService().client;
@@ -19,7 +19,12 @@ class NotificationService {
 
   Future<void> initialize() async {
     // 1. Request Permission
-    await _requestPermission();
+    try {
+      _firebaseMessaging = FirebaseMessaging.instance;
+      await _requestPermission();
+    } catch (e) {
+      debugPrint('Firebase Messaging not available: $e');
+    }
 
     // 2. Initialize Local Notifications
     const androidInit = AndroidInitializationSettings('@mipmap/ic_launcher');
@@ -32,14 +37,16 @@ class NotificationService {
     await _localNotifications.initialize(initSettings);
 
     // 3. Handle Foreground Messages (from FCM if configured)
-    FirebaseMessaging.onMessage.listen((RemoteMessage message) {
-      if (message.notification != null) {
-        showLocalNotification(
-          title: message.notification!.title ?? 'New Notification',
-          body: message.notification!.body ?? '',
-        );
-      }
-    });
+    if (_firebaseMessaging != null) {
+      FirebaseMessaging.onMessage.listen((RemoteMessage message) {
+        if (message.notification != null) {
+          showLocalNotification(
+            title: message.notification!.title ?? 'New Notification',
+            body: message.notification!.body ?? '',
+          );
+        }
+      });
+    }
 
     // 4. Initialize Supabase Realtime for In-App "Push" Simulation
     _initRealtimeSubscription();
@@ -74,7 +81,8 @@ class NotificationService {
   }
 
   Future<void> _requestPermission() async {
-    final settings = await _firebaseMessaging.requestPermission(
+    if (_firebaseMessaging == null) return;
+    final settings = await _firebaseMessaging!.requestPermission(
       alert: true,
       badge: true,
       sound: true,
